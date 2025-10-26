@@ -449,6 +449,16 @@
   resize: vertical;
 }
 
+.checkbox-field {
+  flex-direction: row !important;
+}
+
+hr.form-separator {
+  background-color: #cbd5f5;
+  width: 100%;
+  opacity: 0.5;
+}
+
 .discover-grid {
   display: grid;
   gap: 1.5rem;

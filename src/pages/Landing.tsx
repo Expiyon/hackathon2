@@ -19,7 +19,6 @@ function Landing() {
           </div>
           <div className="nav-actions">
             <WalletConnect />
-            <button className="ghost-btn">Request access</button>
           </div>
         </nav>
 

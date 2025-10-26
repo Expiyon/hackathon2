@@ -237,6 +237,7 @@ function EventCreationPage() {
           />
           <span>Tickets are transferable</span>
         </label>
+        <hr className="form-separator" />
         <label>
           <span>Auto-generated metadata JSON</span>
           <textarea value={metadataPayload} readOnly rows={6} />

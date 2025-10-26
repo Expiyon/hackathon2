@@ -32,10 +32,10 @@ function ConnectedLayout({ accountAddress }: { accountAddress: string }) {
             </NavLink>
           ))}
         </div>
-        <div className="home-pill">
+        {/* <div className="home-pill">
           <span>Wallet</span>
           <strong>{shortenAddress(accountAddress)}</strong>
-        </div>
+        </div> */}
         <WalletConnect />
       </nav>
       <Outlet context={{ accountAddress }} />
