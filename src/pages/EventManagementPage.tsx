@@ -1,8 +1,8 @@
-import { useFeaturedEvents } from '../hooks/useSuivenContract'
+import { useAllEvents } from '../hooks/useSuivenContract'
 import { formatMistToSui, formatTimestamp } from '../utils/sui'
 
 function EventManagementPage() {
-  const { data: events = [], isLoading } = useFeaturedEvents()
+  const { data: events = [], isLoading } = useAllEvents()
 
   const getPhase = (sold: number, capacity: number) => {
     if (!capacity) return 'Draft'
@@ -20,7 +20,7 @@ function EventManagementPage() {
       </header>
       {isLoading && <p>Syncing shared event objects…</p>}
       {!isLoading && !events.length && (
-        <p className="status">No shared events configured. Add IDs to VITE_SUIVEN_FEATURED_EVENT_IDS.</p>
+        <p className="status">No events found on the blockchain yet. Create your first event to get started.</p>
       )}
       <div className="management-table">
         <div className="table-row table-head">

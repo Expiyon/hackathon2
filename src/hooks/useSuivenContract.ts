@@ -7,7 +7,6 @@ import type { SuiObjectData, SuiObjectResponse } from '@mysten/sui/client'
 import {
   CLOCK_OBJECT_ID,
   EVENT_TYPE,
-  FEATURED_EVENT_IDS,
   ORGANIZER_CAP_ID,
   SUIVEN_PACKAGE_ID,
   TICKET_TYPE,
@@ -81,32 +80,6 @@ const parseTicketResponse = (response: SuiObjectResponse): SuivenTicket | null =
     mintedAt: Number(fields.minted_at ?? 0),
     used: Boolean(fields.used),
   }
-}
-
-export const useFeaturedEvents = () => {
-  const client = useSuiClient()
-
-  return useQuery({
-    queryKey: ['suiven', 'events', FEATURED_EVENT_IDS],
-    queryFn: async () => {
-      if (!FEATURED_EVENT_IDS.length) {
-        return [] as SuivenEvent[]
-      }
-
-      const responses = await Promise.all(
-        FEATURED_EVENT_IDS.map((id: string) =>
-          client.getObject({
-            id,
-            options: { showContent: true, showOwner: true },
-          }),
-        ),
-      )
-
-      return responses
-        .map((item) => parseEventResponse(item))
-        .filter((event): event is SuivenEvent => Boolean(event))
-    },
-  })
 }
 
 export const useCreateSuivenEvent = () => {
@@ -248,15 +221,36 @@ export const useAllEvents = () => {
   return useQuery({
     queryKey: ['suiven', 'all-events'],
     queryFn: async () => {
-      // Get all objects of EVENT_TYPE
-      const response = await client.getOwnedObjects({
-        owner: '0x0000000000000000000000000000000000000000000000000000000000000000', // Shared objects
-        filter: { StructType: EVENT_TYPE },
-        options: { showContent: true, showOwner: true },
+      // Query EventCreated events from the blockchain
+      const events = await client.queryEvents({
+        query: {
+          MoveEventType: `${SUIVEN_PACKAGE_ID}::suiven_events::EventCreated`
+        },
         limit: 50,
+        order: 'descending'
       })
 
-      return response.data
+      // Extract event IDs from the emitted events
+      const eventIds = events.data.map(e => {
+        const parsed = e.parsedJson as any
+        return parsed.event_id
+      })
+
+      if (!eventIds.length) {
+        return [] as SuivenEvent[]
+      }
+
+      // Fetch the actual event objects
+      const responses = await Promise.all(
+        eventIds.map(id =>
+          client.getObject({
+            id,
+            options: { showContent: true, showOwner: true }
+          })
+        )
+      )
+
+      return responses
         .map((item) => parseEventResponse(item))
         .filter((event): event is SuivenEvent => Boolean(event))
     },

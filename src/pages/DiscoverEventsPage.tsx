@@ -33,8 +33,8 @@ function DiscoverEventsPage() {
       <section className="discover-grid">
         <article className="discover-card">
           <div>
-            <p className="home-list-title">No featured events configured</p>
-            <span>Add event IDs to VITE_SUIVEN_FEATURED_EVENT_IDS to surface them here.</span>
+            <p className="home-list-title">No events available</p>
+            <span>Check back later or create your first event to get started.</span>
           </div>
         </article>
       </section>
