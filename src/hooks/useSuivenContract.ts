@@ -29,22 +29,23 @@ type CreateEventInput = {
 }
 
 const extractContent = (data?: SuiObjectData) => {
-  if (!data || data.dataType !== 'moveObject' || !data.content) return null
-  return data
+  if (!data || !data.content || data.content.dataType !== 'moveObject') return null
+  return data.content
 }
 
 const parseEventResponse = (response: SuiObjectResponse): SuivenEvent | null => {
+  if (!response.data) return null
   const content = extractContent(response.data)
-  if (!content || content.type !== EVENT_TYPE) {
+  if (!content || !('type' in content) || content.type !== EVENT_TYPE) {
     return null
   }
 
-  const fields = content.fields as Record<string, any>
+  const fields = (content as any).fields as Record<string, any>
   const metadataUri = decodeVectorString(fields.metadata_uri)
 
   return {
     objectId: response.data?.objectId ?? '',
-    initialSharedVersion: response.data?.owner?.Shared?.initial_shared_version,
+    initialSharedVersion: (response.data?.owner as any)?.Shared?.initial_shared_version,
     organizer: fields.organizer,
     metadataUri,
     metadata: parseMetadata(metadataUri),
@@ -62,12 +63,13 @@ const parseEventResponse = (response: SuiObjectResponse): SuivenEvent | null => 
 }
 
 const parseTicketResponse = (response: SuiObjectResponse): SuivenTicket | null => {
+  if (!response.data) return null
   const content = extractContent(response.data)
-  if (!content || content.type !== TICKET_TYPE) {
+  if (!content || !('type' in content) || content.type !== TICKET_TYPE) {
     return null
   }
 
-  const fields = content.fields as Record<string, any>
+  const fields = (content as any).fields as Record<string, any>
   const metadataUri = decodeVectorString(fields.metadata_uri)
 
   return {
@@ -92,7 +94,7 @@ export const useFeaturedEvents = () => {
       }
 
       const responses = await Promise.all(
-        FEATURED_EVENT_IDS.map((id) =>
+        FEATURED_EVENT_IDS.map((id: string) =>
           client.getObject({
             id,
             options: { showContent: true, showOwner: true },
@@ -136,6 +138,7 @@ export const useCreateSuivenEvent = () => {
 
     const result = await mutateAsync({ transaction: tx })
     await queryClient.invalidateQueries({ queryKey: ['suiven', 'events'] })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'all-events'] })
     return result
   }
 
@@ -218,4 +221,88 @@ export const useEventFormDefaults = () => {
     }),
     [],
   )
+}
+
+export const useEventDetails = (eventId?: string) => {
+  const client = useSuiClient()
+
+  return useQuery({
+    queryKey: ['suiven', 'event', eventId],
+    enabled: Boolean(eventId),
+    queryFn: async () => {
+      if (!eventId) return null
+
+      const response = await client.getObject({
+        id: eventId,
+        options: { showContent: true, showOwner: true },
+      })
+
+      return parseEventResponse(response)
+    },
+  })
+}
+
+export const useAllEvents = () => {
+  const client = useSuiClient()
+
+  return useQuery({
+    queryKey: ['suiven', 'all-events'],
+    queryFn: async () => {
+      // Get all objects of EVENT_TYPE
+      const response = await client.getOwnedObjects({
+        owner: '0x0000000000000000000000000000000000000000000000000000000000000000', // Shared objects
+        filter: { StructType: EVENT_TYPE },
+        options: { showContent: true, showOwner: true },
+        limit: 50,
+      })
+
+      return response.data
+        .map((item) => parseEventResponse(item))
+        .filter((event): event is SuivenEvent => Boolean(event))
+    },
+  })
+}
+
+export const useTicketDetails = (ticketId?: string) => {
+  const client = useSuiClient()
+
+  return useQuery({
+    queryKey: ['suiven', 'ticket', ticketId],
+    enabled: Boolean(ticketId),
+    queryFn: async () => {
+      if (!ticketId) return null
+
+      const response = await client.getObject({
+        id: ticketId,
+        options: { showContent: true },
+      })
+
+      return parseTicketResponse(response)
+    },
+  })
+}
+
+export const useMarkTicketAsUsed = () => {
+  const queryClient = useQueryClient()
+  const { mutateAsync, isPending } = useSignAndExecuteTransaction()
+
+  const markAsUsed = async (ticketId: string) => {
+    // Note: This would require VerifierCap, which is not implemented in the current contract
+    // For now, we'll implement a basic version that doesn't require cap
+    const tx = new Transaction()
+    // This is a placeholder - actual implementation would need VerifierCap
+    tx.moveCall({
+      target: `${SUIVEN_PACKAGE_ID}::suiven_tickets::mark_as_used`,
+      arguments: [
+        tx.object(ticketId),
+        // tx.object(VERIFIER_CAP_ID), // Would need this
+      ],
+    })
+
+    const result = await mutateAsync({ transaction: tx })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'tickets'] })
+    return result
+  }
+
+  return { markAsUsed, isPending }
 }

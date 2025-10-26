@@ -1,4 +1,5 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import { ORGANIZER_CAP_ID } from '../config/sui'
 import { useCreateSuivenEvent, useEventFormDefaults } from '../hooks/useSuivenContract'
 import { suiToMist } from '../utils/sui'
@@ -28,6 +29,7 @@ function EventCreationPage() {
   const [endTime, setEndTime] = useState(toInputValue(defaults.endTs))
   const [resaleWindow, setResaleWindow] = useState(toInputValue(defaults.endTs))
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null)
 
   const { createEvent, isPending } = useCreateSuivenEvent()
 
@@ -76,7 +78,7 @@ function EventCreationPage() {
     }
 
     try {
-      await createEvent({
+      const result = await createEvent({
         metadataPayload,
         startTs,
         endTs: endTsValue,
@@ -88,11 +90,23 @@ function EventCreationPage() {
         transferable,
         resaleWindowEnd,
       })
-      setStatus({
-        type: 'success',
-        message:
-          'Event transaction submitted. Check your wallet for confirmation and note the new object ID.',
-      })
+
+      // Extract event ID from transaction result
+      const eventId = (result as any).effects?.created?.[0]?.reference?.objectId ||
+                     (result as any).effects?.events?.[0]?.data?.newObject?.objectId
+
+      if (eventId) {
+        setCreatedEventId(eventId)
+        setStatus({
+          type: 'success',
+          message: `Event created successfully! Event ID: ${eventId}`,
+        })
+      } else {
+        setStatus({
+          type: 'success',
+          message: 'Event transaction submitted successfully. Check your wallet for the event ID.',
+        })
+      }
     } catch (error) {
       setStatus({
         type: 'error',
@@ -119,6 +133,26 @@ function EventCreationPage() {
         {status && (
           <p className={`status ${status.type}`}>
             {status.message}
+            {createdEventId && (
+              <div style={{ marginTop: '10px' }}>
+                <button
+                  className="secondary-btn small"
+                  onClick={() => navigator.clipboard.writeText(createdEventId)}
+                  type="button"
+                >
+                  Copy Event ID
+                </button>
+                <a
+                  href={`https://suiscan.xyz/mainnet/object/${createdEventId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="wallet-link"
+                  style={{ marginLeft: '10px' }}
+                >
+                  View on SuiScan
+                </a>
+              </div>
+            )}
           </p>
         )}
       </div>
