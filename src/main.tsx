@@ -11,14 +11,14 @@ import App from './App.tsx'
 const queryClient = new QueryClient()
 
 const networks = {
-  mainnet: { url: getFullnodeUrl('mainnet') },
-  testnet: { url: getFullnodeUrl('testnet') },
+
+ testnet: { url: getFullnodeUrl('testnet') },
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networks} defaultNetwork="mainnet">
+      <SuiClientProvider networks={networks} defaultNetwork="testnet">
         <WalletProvider autoConnect>
           <BrowserRouter>
             <App />

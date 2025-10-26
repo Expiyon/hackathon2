@@ -119,8 +119,8 @@ export const useCreateSuivenEvent = () => {
     }
 
     const tx = new Transaction()
-    tx.moveCall({
-      target: `${SUIVEN_PACKAGE_ID}::suiven_events::create_and_share_event`,
+    const event = tx.moveCall({
+      target: `${SUIVEN_PACKAGE_ID}::suiven_events::create_event`,
       arguments: [
         tx.object(ORGANIZER_CAP_ID),
         tx.pure.string(input.metadataPayload),
@@ -133,6 +133,12 @@ export const useCreateSuivenEvent = () => {
         tx.pure.u16(input.royaltyBps),
         tx.pure.bool(input.transferable),
         tx.pure.u64(input.resaleWindowEnd),
+      ],
+    })
+    tx.moveCall({
+      target: `${SUIVEN_PACKAGE_ID}::suiven_events::share_event`,
+      arguments: [
+        event,
       ],
     })
 
