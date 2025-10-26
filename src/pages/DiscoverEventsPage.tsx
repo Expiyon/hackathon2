@@ -1,18 +1,16 @@
 import { useState } from 'react'
 import { useCurrentAccount } from '@mysten/dapp-kit'
-import { useAllEvents, useFeaturedEvents, usePurchaseTicket } from '../hooks/useSuivenContract'
+import { useAllEvents, usePurchaseTicket } from '../hooks/useSuivenContract'
 import { formatMistToSui, formatTimestamp } from '../utils/sui'
 
 function DiscoverEventsPage() {
   const currentAccount = useCurrentAccount()
-  const { data: featuredEvents = [], isLoading: featuredLoading } = useFeaturedEvents()
   const { data: allEvents = [], isLoading: allLoading } = useAllEvents()
   const { purchaseTicket, isPending } = usePurchaseTicket(currentAccount?.address)
   const [status, setStatus] = useState<string | null>(null)
-  const [showAll, setShowAll] = useState(true) // Default to showing all events
 
-  const events = showAll ? allEvents : featuredEvents
-  const isLoading = showAll ? allLoading : featuredLoading
+  const events = allEvents
+  const isLoading = allLoading
 
   const handleMint = async (eventIndex: number) => {
     const event = events[eventIndex]
@@ -47,22 +45,6 @@ function DiscoverEventsPage() {
     <section className="discover-grid">
       <header className="discover-header">
         <h2>Discover Events</h2>
-        <div className="discover-controls">
-          <button
-            className={`toggle-btn ${!showAll ? 'active' : ''}`}
-            onClick={() => setShowAll(false)}
-            type="button"
-          >
-            Featured
-          </button>
-          <button
-            className={`toggle-btn ${showAll ? 'active' : ''}`}
-            onClick={() => setShowAll(true)}
-            type="button"
-          >
-            All Events
-          </button>
-        </div>
       </header>
       {status && <p className="status">{status}</p>}
       {events.map((event, index) => (
