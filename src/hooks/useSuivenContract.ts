@@ -5,6 +5,7 @@ import { Transaction } from '@mysten/sui/transactions'
 import type { SuiObjectData, SuiObjectResponse } from '@mysten/sui/client'
 
 import {
+  ADMIN_CAP_ID,
   CLOCK_OBJECT_ID,
   EVENT_TYPE,
   ORGANIZER_CAP_ID,
@@ -15,6 +16,7 @@ import type { SuivenEvent, SuivenTicket } from '../types/suiven'
 import { decodeVectorString, parseMetadata, suiToMist } from '../utils/sui'
 
 type CreateEventInput = {
+  eventName: string
   metadataPayload: string
   startTs: number
   endTs: number
@@ -40,12 +42,13 @@ const parseEventResponse = (response: SuiObjectResponse): SuivenEvent | null => 
   }
 
   const fields = (content as any).fields as Record<string, any>
-  const metadataUri = decodeVectorString(fields.metadata_uri)
+  const metadataUri = fields.metadata_uri ?? ''
 
   return {
     objectId: response.data?.objectId ?? '',
     initialSharedVersion: (response.data?.owner as any)?.Shared?.initial_shared_version,
     organizer: fields.organizer,
+    eventName: fields.event_name ?? 'Event Title',
     metadataUri,
     metadata: parseMetadata(metadataUri),
     startTs: Number(fields.start_ts ?? 0),
@@ -54,10 +57,11 @@ const parseEventResponse = (response: SuiObjectResponse): SuivenEvent | null => 
     sold: Number(fields.sold ?? 0),
     priceAmount: fields.price_amount ?? '0',
     priceIsSui: Boolean(fields.price_is_sui),
-    priceTokenType: decodeVectorString(fields.price_token_type),
+    priceTokenType: fields.price_token_type ?? '',
     royaltyBps: Number(fields.royalty_bps ?? 0),
     transferable: Boolean(fields.transferable),
     resaleWindowEnd: Number(fields.resale_window_end ?? 0),
+    balance: fields.balance ? String(fields.balance) : '0',
   }
 }
 
@@ -69,11 +73,13 @@ const parseTicketResponse = (response: SuiObjectResponse): SuivenTicket | null =
   }
 
   const fields = (content as any).fields as Record<string, any>
-  const metadataUri = decodeVectorString(fields.metadata_uri)
+  // Tickets still use vector<u8> for metadata_uri, so we need to decode it
+  const metadataUri = fields.metadata_uri ? decodeVectorString(fields.metadata_uri) : ''
 
   return {
     objectId: response.data?.objectId ?? '',
     eventId: fields.event_id ?? '',
+    eventName: fields.event_name ?? 'Event Title',
     owner: fields.owner ?? '',
     metadataUri,
     metadata: metadataUri ? parseMetadata(metadataUri) : null,
@@ -96,6 +102,7 @@ export const useCreateSuivenEvent = () => {
       target: `${SUIVEN_PACKAGE_ID}::suiven_events::create_event`,
       arguments: [
         tx.object(ORGANIZER_CAP_ID),
+        tx.pure.string(input.eventName),
         tx.pure.string(input.metadataPayload),
         tx.pure.u64(input.startTs),
         tx.pure.u64(input.endTs),
@@ -128,6 +135,10 @@ export const usePurchaseTicket = (ownerAddress?: string | null) => {
     }
 
     const tx = new Transaction()
+
+    // Split coin from gas for payment
+    const [paymentCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(event.priceAmount)])
+
     tx.moveCall({
       target: `${SUIVEN_PACKAGE_ID}::suiven_tickets::purchase_with_payment`,
       arguments: [
@@ -136,7 +147,7 @@ export const usePurchaseTicket = (ownerAddress?: string | null) => {
           initialSharedVersion: event.initialSharedVersion,
           mutable: true,
         }),
-        tx.pure.u128(event.priceAmount),
+        paymentCoin,
         tx.pure.string(event.metadataUri),
         tx.object(CLOCK_OBJECT_ID),
       ],
@@ -144,10 +155,48 @@ export const usePurchaseTicket = (ownerAddress?: string | null) => {
 
     const result = await mutateAsync({ transaction: tx })
     await queryClient.invalidateQueries({ queryKey: ['suiven', 'tickets', ownerAddress ?? ''] })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'events'] })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'all-events'] })
     return result
   }
 
   return { purchaseTicket, isPending }
+}
+
+export const useWithdrawEventFunds = () => {
+  const queryClient = useQueryClient()
+  const { mutateAsync, isPending } = useSignAndExecuteTransaction()
+
+  const withdrawFunds = async (event: SuivenEvent) => {
+    if (!ADMIN_CAP_ID) {
+      throw new Error('Admin capability object ID is not configured. Set VITE_SUIVEN_ADMIN_CAP_ID.')
+    }
+
+    if (!event.initialSharedVersion) {
+      throw new Error('Event is not shared or missing the initial shared version.')
+    }
+
+    const tx = new Transaction()
+    tx.moveCall({
+      target: `${SUIVEN_PACKAGE_ID}::suiven_events::admin_withdraw_event_funds`,
+      arguments: [
+        tx.object(ADMIN_CAP_ID),
+        tx.sharedObjectRef({
+          objectId: event.objectId,
+          initialSharedVersion: event.initialSharedVersion,
+          mutable: true,
+        }),
+      ],
+    })
+
+    const result = await mutateAsync({ transaction: tx })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'events'] })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'all-events'] })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'event', event.objectId] })
+    return result
+  }
+
+  return { withdrawFunds, isPending }
 }
 
 export const useWalletTickets = (owner?: string | null) => {

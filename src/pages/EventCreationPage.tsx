@@ -79,6 +79,7 @@ function EventCreationPage() {
 
     try {
       const result = await createEvent({
+        eventName: title,
         metadataPayload,
         startTs,
         endTs: endTsValue,

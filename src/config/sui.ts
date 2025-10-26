@@ -13,10 +13,12 @@ const normalize = (value?: string) => {
 
 const packageId = normalize(import.meta.env.VITE_SUIVEN_PACKAGE_ID) || FALLBACK_PACKAGE_ID
 const organizerCapId = normalize(import.meta.env.VITE_SUIVEN_ORGANIZER_CAP_ID)
+const adminCapId = normalize(import.meta.env.VITE_SUIVEN_ADMIN_CAP_ID)
 const clockObjectId = normalize(import.meta.env.VITE_SUIVEN_CLOCK_OBJECT_ID) || '0x6'
 
 export const SUIVEN_PACKAGE_ID = packageId
 export const ORGANIZER_CAP_ID = organizerCapId
+export const ADMIN_CAP_ID = adminCapId
 export const CLOCK_OBJECT_ID = clockObjectId
 
 export const EVENT_TYPE = `${SUIVEN_PACKAGE_ID}::suiven_events::Event`
