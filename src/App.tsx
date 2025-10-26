@@ -1,9 +1,8 @@
+import { useCurrentAccount } from '@mysten/dapp-kit'
 import { Suspense, lazy } from 'react'
 import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { useCurrentAccount } from '@mysten/dapp-kit'
 import './App.css'
 import WalletConnect from './components/WalletConnect'
-import { shortenAddress } from './utils/format'
 
 const LandingPage = lazy(() => import('./pages/Landing'))
 const HomeOverview = lazy(() => import('./pages/HomeOverview'))
@@ -27,7 +26,11 @@ function ConnectedLayout({ accountAddress }: { accountAddress: string }) {
         <div className="brand">Suiven</div>
         <div className="home-nav-links">
           {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => (isActive ? 'active' : '')}
+            >
               {item.label}
             </NavLink>
           ))}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useDashboardContext } from '../hooks/useDashboardContext'
-import { useBurnTicketAndMintPOAP, useEventDetails, useWalletPOAPs, useWalletTickets } from '../hooks/useSuivenContract'
+import { useBurnTicketAndMintPOAP, useWalletPOAPs, useWalletTickets } from '../hooks/useSuivenContract'
 import { shortenAddress } from '../utils/format'
 import { loadProfile, saveProfile, type UserProfile } from '../utils/profileStorage'
 import { formatTimestamp } from '../utils/sui'
@@ -11,7 +11,7 @@ function ProfilePage() {
   const { data: poaps = [], isLoading: poapsLoading } = useWalletPOAPs(accountAddress)
   const { burnAndMint, isPending: burningPending } = useBurnTicketAndMintPOAP(accountAddress)
   const [status, setStatus] = useState<string | null>(null)
-  const [selectedTicket, setSelectedTicket] = useState<string | null>(null)
+  // const [selectedTicket, setSelectedTicket] = useState<string | null>(null)
   const [profile, setProfile] = useState<UserProfile>({
     name: '',
     surname: '',
@@ -22,9 +22,9 @@ function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [saveStatus, setSaveStatus] = useState<string | null>(null)
 
-  const { data: eventDetails } = useEventDetails(
-    tickets.find(t => t.objectId === selectedTicket)?.eventId
-  )
+  // const { data: eventDetails } = useEventDetails(
+  //   tickets.find(t => t.objectId === selectedTicket)?.eventId
+  // )
 
   // Load profile from Local Storage when component mounts or wallet changes
   useEffect(() => {
@@ -215,7 +215,7 @@ function ProfilePage() {
 
       {/* Ticket Inventory Section */}
       <div className="ticket-inventory">
-        <h2>Wallet Inventory</h2>
+        <h2>Event Tickets</h2>
         <p>All tickets live on Sui as NFTs.</p>
       </div>
 
@@ -274,7 +274,7 @@ function ProfilePage() {
               <p>Event</p>
               <strong>{shortenAddress(poap.eventId)}</strong>
             </div>
-            <div className="ticket-status confirmed" style={{ background: '#10b981' }}>
+            <div className="ticket-status confirmed">
               Soulbound
             </div>
             <small>Issued {formatTimestamp(poap.issuedTs)}</small>
