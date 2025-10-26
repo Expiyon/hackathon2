@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useDashboardContext } from '../hooks/useDashboardContext'
-import { useEventDetails, useMarkTicketAsUsed, useWalletTickets } from '../hooks/useSuivenContract'
+import { useBurnTicketAndMintPOAP, useEventDetails, useWalletPOAPs, useWalletTickets } from '../hooks/useSuivenContract'
 import { shortenAddress } from '../utils/format'
 import { loadProfile, saveProfile, type UserProfile } from '../utils/profileStorage'
 import { formatTimestamp } from '../utils/sui'
@@ -8,7 +8,8 @@ import { formatTimestamp } from '../utils/sui'
 function ProfilePage() {
   const { accountAddress } = useDashboardContext()
   const { data: tickets = [], isLoading } = useWalletTickets(accountAddress)
-  const { markAsUsed, isPending: markingPending } = useMarkTicketAsUsed()
+  const { data: poaps = [], isLoading: poapsLoading } = useWalletPOAPs(accountAddress)
+  const { burnAndMint, isPending: burningPending } = useBurnTicketAndMintPOAP(accountAddress)
   const [status, setStatus] = useState<string | null>(null)
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null)
   const [profile, setProfile] = useState<UserProfile>({
@@ -58,6 +59,19 @@ function ProfilePage() {
     if (!email) return true // Empty is valid (optional field)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
+  }
+
+  const handleBurnTicketAndMintPOAP = async (ticketId: string, metadataUri: string) => {
+    try {
+      setStatus('Burning ticket and minting POAP...')
+      await burnAndMint(ticketId, metadataUri)
+      setStatus('Success! POAP minted. Ticket burned.')
+      setTimeout(() => setStatus(null), 5000)
+    } catch (error) {
+      console.error('Failed to burn ticket and mint POAP:', error)
+      setStatus('Failed to burn ticket and mint POAP')
+      setTimeout(() => setStatus(null), 5000)
+    }
   }
 
   return (
@@ -228,13 +242,42 @@ function ProfilePage() {
             {!ticket.used && (
               <button
                 className="secondary-btn small"
-                onClick={() => setSelectedTicket(ticket.objectId)}
-                disabled={markingPending}
+                onClick={() => handleBurnTicketAndMintPOAP(ticket.objectId, ticket.metadataUri)}
+                disabled={burningPending}
                 type="button"
               >
-                {markingPending ? 'Marking...' : 'Mark as Used'}
+                {burningPending ? 'Processing...' : 'Mark as Used'}
               </button>
             )}
+          </article>
+        ))}
+      </div>
+
+      {/* POAP Inventory Section */}
+      <div className="ticket-inventory" style={{ marginTop: '3rem' }}>
+        <h2>Attendance POAPs</h2>
+        <p>Proof of Attendance Protocol - Soulbound NFTs that cannot be transferred.</p>
+      </div>
+
+      {poapsLoading && <p>Loading POAPs…</p>}
+      {!poapsLoading && !poaps.length && (
+        <p className="status">No POAPs found. Claim one by marking a ticket as used!</p>
+      )}
+      <div className="ticket-grid">
+        {poaps.map((poap) => (
+          <article key={poap.objectId} className="ticket-nft">
+            <div>
+              <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{poap.metadata?.title ?? poap.eventName} - POAP</p>
+              <span>{poap.metadata?.location ?? 'Attendance Proof'}</span>
+            </div>
+            <div className="ticket-meta">
+              <p>Event</p>
+              <strong>{shortenAddress(poap.eventId)}</strong>
+            </div>
+            <div className="ticket-status confirmed" style={{ background: '#10b981' }}>
+              Soulbound
+            </div>
+            <small>Issued {formatTimestamp(poap.issuedTs)}</small>
           </article>
         ))}
       </div>

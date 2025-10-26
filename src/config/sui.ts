@@ -23,3 +23,4 @@ export const CLOCK_OBJECT_ID = clockObjectId
 
 export const EVENT_TYPE = `${SUIVEN_PACKAGE_ID}::suiven_events::Event`
 export const TICKET_TYPE = `${SUIVEN_PACKAGE_ID}::suiven_tickets::TicketNFT`
+export const POAP_TYPE = `${SUIVEN_PACKAGE_ID}::suiven_poap::POAPNFT`

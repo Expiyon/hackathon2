@@ -30,3 +30,13 @@ export type SuivenTicket = {
   mintedAt: number
   used: boolean
 }
+
+export type SuivenPOAP = {
+  objectId: string
+  eventId: string
+  eventName: string
+  holder: string
+  issuedTs: number
+  metadataUri: string
+  metadata: EventMetadata | null
+}

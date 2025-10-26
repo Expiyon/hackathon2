@@ -9,10 +9,11 @@ import {
   CLOCK_OBJECT_ID,
   EVENT_TYPE,
   ORGANIZER_CAP_ID,
+  POAP_TYPE,
   SUIVEN_PACKAGE_ID,
   TICKET_TYPE,
 } from '../config/sui'
-import type { SuivenEvent, SuivenTicket } from '../types/suiven'
+import type { SuivenEvent, SuivenPOAP, SuivenTicket } from '../types/suiven'
 import { decodeVectorString, parseMetadata, suiToMist } from '../utils/sui'
 
 type CreateEventInput = {
@@ -85,6 +86,28 @@ const parseTicketResponse = (response: SuiObjectResponse): SuivenTicket | null =
     metadata: metadataUri ? parseMetadata(metadataUri) : null,
     mintedAt: Number(fields.minted_at ?? 0),
     used: Boolean(fields.used),
+  }
+}
+
+const parsePoapResponse = (response: SuiObjectResponse): SuivenPOAP | null => {
+  if (!response.data) return null
+  const content = extractContent(response.data)
+  if (!content || !('type' in content) || content.type !== POAP_TYPE) {
+    return null
+  }
+
+  const fields = (content as any).fields as Record<string, any>
+  // POAPs use vector<u8> for metadata_uri
+  const metadataUri = fields.metadata_uri ? decodeVectorString(fields.metadata_uri) : ''
+
+  return {
+    objectId: response.data?.objectId ?? '',
+    eventId: fields.event_id ?? '',
+    eventName: fields.event_name ?? 'Event Title',
+    holder: fields.holder ?? '',
+    issuedTs: Number(fields.issued_ts ?? 0),
+    metadataUri,
+    metadata: metadataUri ? parseMetadata(metadataUri) : null,
   }
 }
 
@@ -222,6 +245,29 @@ export const useWalletTickets = (owner?: string | null) => {
   })
 }
 
+export const useWalletPOAPs = (owner?: string | null) => {
+  const client = useSuiClient()
+
+  return useQuery({
+    queryKey: ['suiven', 'poaps', owner ?? ''],
+    enabled: Boolean(owner),
+    queryFn: async () => {
+      if (!owner) return [] as SuivenPOAP[]
+
+      const response = await client.getOwnedObjects({
+        owner,
+        filter: { StructType: POAP_TYPE },
+        options: { showContent: true },
+        limit: 50,
+      })
+
+      return response.data
+        .map((item) => parsePoapResponse(item))
+        .filter((poap): poap is SuivenPOAP => Boolean(poap))
+    },
+  })
+}
+
 export const useEventFormDefaults = () => {
   return useMemo(
     () => ({
@@ -325,27 +371,30 @@ export const useTicketDetails = (ticketId?: string) => {
   })
 }
 
-export const useMarkTicketAsUsed = () => {
+export const useBurnTicketAndMintPOAP = (ownerAddress?: string | null) => {
   const queryClient = useQueryClient()
   const { mutateAsync, isPending } = useSignAndExecuteTransaction()
 
-  const markAsUsed = async (ticketId: string) => {
-    // Note: This would require VerifierCap, which is not implemented in the current contract
-    // For now, we'll implement a basic version that doesn't require cap
+  const burnAndMint = async (ticketId: string, metadataUri: string) => {
     const tx = new Transaction()
-    // This is a placeholder - actual implementation would need VerifierCap
+
     tx.moveCall({
-      target: `${SUIVEN_PACKAGE_ID}::suiven_tickets::mark_as_used`,
+      target: `${SUIVEN_PACKAGE_ID}::suiven_poap::burn_ticket_and_mint_poap_entry`,
       arguments: [
         tx.object(ticketId),
-        // tx.object(VERIFIER_CAP_ID), // Would need this
+        tx.pure.vector('u8', Array.from(new TextEncoder().encode(metadataUri))),
+        tx.object(CLOCK_OBJECT_ID),
       ],
     })
 
     const result = await mutateAsync({ transaction: tx })
-    await queryClient.invalidateQueries({ queryKey: ['suiven', 'tickets'] })
+
+    // Invalidate both tickets and poaps queries
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'tickets', ownerAddress ?? ''] })
+    await queryClient.invalidateQueries({ queryKey: ['suiven', 'poaps', ownerAddress ?? ''] })
+
     return result
   }
 
-  return { markAsUsed, isPending }
+  return { burnAndMint, isPending }
 }
