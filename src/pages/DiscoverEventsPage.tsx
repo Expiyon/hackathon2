@@ -5,7 +5,7 @@ import { formatMistToSui, formatTimestamp } from '../utils/sui'
 
 function DiscoverEventsPage() {
   const currentAccount = useCurrentAccount()
-  const { data: allEvents = [], isLoading: allLoading } = useAllEvents()
+  const { data: allEvents = [], isLoading: allLoading, refetch } = useAllEvents()
   const { purchaseTicket, isPending } = usePurchaseTicket(currentAccount?.address)
   const [status, setStatus] = useState<string | null>(null)
 
@@ -19,6 +19,7 @@ function DiscoverEventsPage() {
     try {
       const result = await purchaseTicket(event)
       setStatus(`Ticket minted. Digest: ${result.digest}`)
+      refetch()
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to mint ticket.')
     }
@@ -51,10 +52,10 @@ function DiscoverEventsPage() {
         <article key={event.objectId} className="discover-card">
           <div>
             <p className="home-list-title">{event.metadata.title}</p>
-            <span>
+            <div>
               {event.metadata.detail || `${formatTimestamp(event.startTs)} - ${formatTimestamp(event.endTs)}`}
-            </span>
-            {event.metadata.location && <small>{event.metadata.location}</small>}
+            </div>
+            {event.metadata.location && <div><small>{event.metadata.location}</small></div>}
           </div>
           <div className="discover-meta">
             <p>

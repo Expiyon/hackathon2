@@ -214,7 +214,7 @@ function ProfilePage() {
         {tickets.map((ticket) => (
           <article key={ticket.objectId} className="ticket-nft">
             <div>
-              <p>{ticket.metadata?.title ?? 'Suiven Ticket'}</p>
+              <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{ticket.metadata?.title ?? 'Suiven Ticket'}</p>
               <span>{ticket.metadata?.tiers ?? ticket.metadata?.location ?? 'On-chain proof'}</span>
             </div>
             <div className="ticket-meta">
